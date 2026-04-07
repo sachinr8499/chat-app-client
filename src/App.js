@@ -24,7 +24,7 @@ function Login({ onLogin }) {
     <div className="login-screen">
       <div className="login-card">
         <div className="login-logo">💬</div>
-        <h1>ChatApp</h1>
+        <h1>Coding App</h1>
         <p className="login-subtitle">Sign in to continue</p>
 
         {error && <div className="error-msg">{error}</div>}
