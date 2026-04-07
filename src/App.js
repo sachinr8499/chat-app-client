@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import axios from "axios";
 import "./App.css";
 
-const API = process.env.REACT_APP_API_URL;
+const API = process.env.REACT_APP_API_URL || "http://localhost:5000";
 
 function Login({ onLogin }) {
   const [username, setUsername] = useState("");
@@ -59,30 +59,20 @@ function Chat({ username, onLogout }) {
   const token = localStorage.getItem("token");
   const headers = { Authorization: `Bearer ${token}` };
 
-  const fetchMessages = async () => {
+  const fetchMessages = useCallback(async () => {
     try {
       const res = await axios.get(`${API}/api/messages`, { headers });
       setMessages(res.data);
     } catch {
       console.error("Failed to fetch messages");
     }
-  };
+  }, [API, token]);
 
   useEffect(() => {
-    const fetchMessages = async () => {
-      try {
-        const res = await axios.get(`${API}/api/messages`, { headers });
-        setMessages(res.data);
-      } catch {
-        console.error("Failed to fetch messages");
-      }
-    };
-  
     fetchMessages();
     const interval = setInterval(fetchMessages, 3000);
-  
     return () => clearInterval(interval);
-  }, [username]);
+  }, [fetchMessages]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
