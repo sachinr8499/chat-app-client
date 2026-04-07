@@ -48,8 +48,6 @@ function Login({ onLogin }) {
         <button className="login-btn" onClick={handleLogin}>
           Sign In
         </button>
-
-        <p className="hint">user1 or user2 / Apple@1698</p>
       </div>
     </div>
   );
