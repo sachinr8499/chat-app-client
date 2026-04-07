@@ -69,8 +69,18 @@ function Chat({ username, onLogout }) {
   };
 
   useEffect(() => {
+    const fetchMessages = async () => {
+      try {
+        const res = await axios.get(`${API}/api/messages`, { headers });
+        setMessages(res.data);
+      } catch {
+        console.error("Failed to fetch messages");
+      }
+    };
+  
     fetchMessages();
     const interval = setInterval(fetchMessages, 3000);
+  
     return () => clearInterval(interval);
   }, [username]);
 
