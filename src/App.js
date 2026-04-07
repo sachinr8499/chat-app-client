@@ -57,22 +57,27 @@ function Chat({ username, onLogout }) {
   const other = username === "user1" ? "user2" : "user1";
 
   const token = localStorage.getItem("token");
-  const headers = { Authorization: `Bearer ${token}` };
 
-  const fetchMessages = useCallback(async () => {
-    try {
-      const res = await axios.get(`${API}/api/messages`, { headers });
-      setMessages(res.data);
-    } catch {
-      console.error("Failed to fetch messages");
-    }
-  }, [API, token]);
+const headers = {
+  Authorization: `Bearer ${token}`,
+};
 
-  useEffect(() => {
-    fetchMessages();
-    const interval = setInterval(fetchMessages, 3000);
-    return () => clearInterval(interval);
-  }, [fetchMessages]);
+const fetchMessages = useCallback(async () => {
+  try {
+    const res = await axios.get(`${API}/api/messages`, { headers });
+    setMessages(res.data);
+  } catch {
+    console.error("Failed to fetch messages");
+  }
+}, [API, token]); 
+
+useEffect(() => {
+  fetchMessages();
+
+  const interval = setInterval(fetchMessages, 3000);
+
+  return () => clearInterval(interval);
+}, [fetchMessages]); 
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
