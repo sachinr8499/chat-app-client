@@ -11,7 +11,6 @@ function Login({ onLogin }) {
 
   const handleLogin = async () => {
     try {
-      console.log(username, password);
       const res = await axios.post(`${API}/api/login`, { username, password });
       localStorage.setItem("token", res.data.token);
       localStorage.setItem("username", res.data.username);
@@ -27,13 +26,16 @@ function Login({ onLogin }) {
         <div className="login-logo">💬</div>
         <h1>ChatApp</h1>
         <p className="login-subtitle">Sign in to continue</p>
+
         {error && <div className="error-msg">{error}</div>}
+
         <input
           className="input-field"
           placeholder="Username"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
         />
+
         <input
           className="input-field"
           type="password"
@@ -42,7 +44,11 @@ function Login({ onLogin }) {
           onChange={(e) => setPassword(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleLogin()}
         />
-        <button className="login-btn" onClick={handleLogin}>Sign In</button>
+
+        <button className="login-btn" onClick={handleLogin}>
+          Sign In
+        </button>
+
         <p className="hint">user1 or user2 / Apple@1698</p>
       </div>
     </div>
@@ -54,30 +60,33 @@ function Chat({ username, onLogout }) {
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
   const bottomRef = useRef(null);
+
   const other = username === "user1" ? "user2" : "user1";
 
-  const token = localStorage.getItem("token");
+  // ✅ CLEAN: no headers outside
+  const fetchMessages = useCallback(async () => {
+    try {
+      const token = localStorage.getItem("token");
 
-const headers = {
-  Authorization: `Bearer ${token}`,
-};
+      const res = await axios.get(`${API}/api/messages`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-const fetchMessages = useCallback(async () => {
-  try {
-    const res = await axios.get(`${API}/api/messages`, { headers });
-    setMessages(res.data);
-  } catch {
-    console.error("Failed to fetch messages");
-  }
-}, [API, token]); 
+      setMessages(res.data);
+    } catch {
+      console.error("Failed to fetch messages");
+    }
+  }, []);
 
-useEffect(() => {
-  fetchMessages();
+  useEffect(() => {
+    fetchMessages();
 
-  const interval = setInterval(fetchMessages, 3000);
+    const interval = setInterval(fetchMessages, 3000);
 
-  return () => clearInterval(interval);
-}, [fetchMessages]); 
+    return () => clearInterval(interval);
+  }, [fetchMessages]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -85,14 +94,28 @@ useEffect(() => {
 
   const sendMessage = async () => {
     if (!text.trim()) return;
+
     setLoading(true);
+
     try {
-      await axios.post(`${API}/api/messages`, { text }, { headers });
+      const token = localStorage.getItem("token");
+
+      await axios.post(
+        `${API}/api/messages`,
+        { text },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
       setText("");
       fetchMessages();
     } catch {
       console.error("Failed to send");
     }
+
     setLoading(false);
   };
 
@@ -111,24 +134,39 @@ useEffect(() => {
             <div className="online-status">● Online</div>
           </div>
         </div>
-        <button className="logout-btn" onClick={onLogout}>Logout</button>
+
+        <button className="logout-btn" onClick={onLogout}>
+          Logout
+        </button>
       </div>
 
       <div className="messages-container">
         {messages.length === 0 && (
           <div className="no-msgs">No messages yet. Say hello! 👋</div>
         )}
+
         {messages.map((msg) => (
           <div
             key={msg._id}
-            className={`message-row ${msg.sender === username ? "sent" : "received"}`}
+            className={`message-row ${
+              msg.sender === username ? "sent" : "received"
+            }`}
           >
-            <div className={`bubble ${msg.sender === username ? "bubble-sent" : "bubble-received"}`}>
+            <div
+              className={`bubble ${
+                msg.sender === username
+                  ? "bubble-sent"
+                  : "bubble-received"
+              }`}
+            >
               <span className="msg-text">{msg.text}</span>
-              <span className="msg-time">{formatTime(msg.timestamp)}</span>
+              <span className="msg-time">
+                {formatTime(msg.timestamp)}
+              </span>
             </div>
           </div>
         ))}
+
         <div ref={bottomRef} />
       </div>
 
@@ -140,6 +178,7 @@ useEffect(() => {
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && sendMessage()}
         />
+
         <button
           className="send-btn"
           onClick={sendMessage}
@@ -153,14 +192,18 @@ useEffect(() => {
 }
 
 export default function App() {
-  const [username, setUsername] = useState(localStorage.getItem("username") || null);
+  const [username, setUsername] = useState(
+    localStorage.getItem("username") || null
+  );
 
   const handleLogout = () => {
     localStorage.clear();
     setUsername(null);
   };
 
-  return username
-    ? <Chat username={username} onLogout={handleLogout} />
-    : <Login onLogin={setUsername} />;
+  return username ? (
+    <Chat username={username} onLogout={handleLogout} />
+  ) : (
+    <Login onLogin={setUsername} />
+  );
 }
