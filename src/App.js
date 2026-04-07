@@ -61,7 +61,7 @@ function Chat({ username, onLogout }) {
   const [loading, setLoading] = useState(false);
   const bottomRef = useRef(null);
 
-  const other = username === "user1" ? "user2" : "user1";
+  const other = username === "user1" ? "Prajakta" : "Sachin";
 
   // ✅ CLEAN: no headers outside
   const fetchMessages = useCallback(async () => {
@@ -128,7 +128,9 @@ function Chat({ username, onLogout }) {
     <div className="chat-screen">
       <div className="chat-header">
         <div className="header-left">
-          <div className="avatar">{other[0].toUpperCase()}</div>
+          <div className="avatar">
+            <img src={`/avatars/sachin.jpg`} alt="avatar" className="avatar" />
+          </div>
           <div>
             <div className="chat-with">{other}</div>
             <div className="online-status">● Online</div>
