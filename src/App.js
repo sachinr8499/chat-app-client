@@ -4,20 +4,43 @@ import "./App.css";
 
 const API = process.env.REACT_APP_API_URL || "http://localhost:5001";
 
+// ✅ Axios interceptor (BEST PRACTICE)
+axios.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token");
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
 function Login({ onLogin }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
+    if (!username || !password) return;
+
+    setLoading(true);
+    setError("");
+
     try {
-      const res = await axios.post(`${API}/api/login`, { username, password });
+      const res = await axios.post(`${API}/api/login`, {
+        username,
+        password,
+      });
+
       localStorage.setItem("token", res.data.token);
       localStorage.setItem("username", res.data.username);
-      onLogin(res.data.username);
-    } catch {
+
+      onLogin(res.data.username); // ✅ triggers UI switch immediately
+    } catch (err) {
       setError("Invalid credentials. Try again.");
+      console.error("Login error:", err.response?.data || err.message);
     }
+
+    setLoading(false);
   };
 
   return (
@@ -33,6 +56,7 @@ function Login({ onLogin }) {
           className="input-field"
           placeholder="Username"
           value={username}
+          disabled={loading}
           onChange={(e) => setUsername(e.target.value)}
         />
 
@@ -41,12 +65,17 @@ function Login({ onLogin }) {
           type="password"
           placeholder="Password"
           value={password}
+          disabled={loading}
           onChange={(e) => setPassword(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleLogin()}
         />
 
-        <button className="login-btn" onClick={handleLogin}>
-          Sign In
+        <button
+          className="login-btn"
+          onClick={handleLogin}
+          disabled={loading}
+        >
+          {loading ? "Signing in..." : "Sign In"}
         </button>
       </div>
     </div>
@@ -61,20 +90,15 @@ function Chat({ username, onLogout }) {
 
   const other = username === "user1" ? "Prajakta" : "Sachin";
 
-  // ✅ CLEAN: no headers outside
   const fetchMessages = useCallback(async () => {
+    const token = localStorage.getItem("token");
+    if (!token) return; // ✅ prevents first-time failure
+
     try {
-      const token = localStorage.getItem("token");
-
-      const res = await axios.get(`${API}/api/messages`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
+      const res = await axios.get(`${API}/api/messages`);
       setMessages(res.data);
-    } catch {
-      console.error("Failed to fetch messages");
+    } catch (err) {
+      console.error("Fetch error:", err.response?.data || err.message);
     }
   }, []);
 
@@ -82,7 +106,6 @@ function Chat({ username, onLogout }) {
     fetchMessages();
 
     const interval = setInterval(fetchMessages, 3000);
-
     return () => clearInterval(interval);
   }, [fetchMessages]);
 
@@ -96,22 +119,11 @@ function Chat({ username, onLogout }) {
     setLoading(true);
 
     try {
-      const token = localStorage.getItem("token");
-
-      await axios.post(
-        `${API}/api/messages`,
-        { text },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
+      await axios.post(`${API}/api/messages`, { text });
       setText("");
       fetchMessages();
-    } catch {
-      console.error("Failed to send");
+    } catch (err) {
+      console.error("Send error:", err.response?.data || err.message);
     }
 
     setLoading(false);
@@ -119,7 +131,10 @@ function Chat({ username, onLogout }) {
 
   const formatTime = (ts) => {
     const d = new Date(ts);
-    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    return d.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   };
 
   return (
@@ -192,9 +207,15 @@ function Chat({ username, onLogout }) {
 }
 
 export default function App() {
-  const [username, setUsername] = useState(
-    localStorage.getItem("username") || null
-  );
+  const [username, setUsername] = useState(null);
+
+  // ✅ FIX: initialize properly on app load
+  useEffect(() => {
+    const storedUser = localStorage.getItem("username");
+    if (storedUser) {
+      setUsername(storedUser);
+    }
+  }, []);
 
   const handleLogout = () => {
     localStorage.clear();
