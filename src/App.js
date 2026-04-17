@@ -4,15 +4,6 @@ import "./App.css";
 
 const API = process.env.REACT_APP_API_URL || "http://localhost:5001";
 
-// ✅ Axios interceptor (BEST PRACTICE)
-axios.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
 function Login({ onLogin }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -20,21 +11,21 @@ function Login({ onLogin }) {
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
-    if (!username || !password) return;
+    if (!username.trim() || !password.trim()) return;
 
     setLoading(true);
     setError("");
 
     try {
       const res = await axios.post(`${API}/api/login`, {
-        username,
-        password,
+        username: username.trim(),
+        password: password.trim(),
       });
 
       localStorage.setItem("token", res.data.token);
       localStorage.setItem("username", res.data.username);
 
-      onLogin(res.data.username); // ✅ triggers UI switch immediately
+      onLogin(res.data.username);
     } catch (err) {
       setError("Invalid credentials. Try again.");
       console.error("Login error:", err.response?.data || err.message);
@@ -92,7 +83,7 @@ function Chat({ username, onLogout }) {
 
   const fetchMessages = useCallback(async () => {
     const token = localStorage.getItem("token");
-    if (!token) return; // ✅ prevents first-time failure
+    if (!token) return;
 
     try {
       const res = await axios.get(`${API}/api/messages`);
@@ -104,7 +95,6 @@ function Chat({ username, onLogout }) {
 
   useEffect(() => {
     fetchMessages();
-
     const interval = setInterval(fetchMessages, 3000);
     return () => clearInterval(interval);
   }, [fetchMessages]);
@@ -137,16 +127,51 @@ function Chat({ username, onLogout }) {
     });
   };
 
+  // ✅ DATE LABEL (Today / Yesterday / Date)
+  const getDateLabel = (ts) => {
+    const msgDate = new Date(ts);
+    const today = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(today.getDate() - 1);
+
+    const isSameDay = (d1, d2) =>
+      d1.toDateString() === d2.toDateString();
+
+    if (isSameDay(msgDate, today)) return "Today";
+    if (isSameDay(msgDate, yesterday)) return "Yesterday";
+
+    return msgDate.toLocaleDateString([], {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
+  // ✅ SORT + GROUP
+  const sortedMessages = [...messages].sort(
+    (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
+  );
+
+  const groupedMessages = sortedMessages.reduce((acc, msg) => {
+    const label = getDateLabel(msg.timestamp);
+
+    if (!acc[label]) acc[label] = [];
+    acc[label].push(msg);
+
+    return acc;
+  }, {});
+
   return (
     <div className="chat-screen">
       <div className="chat-header">
         <div className="header-left">
-          <div className="avatar">
-            <img src={`/avatars/sachin.jpg`} alt="avatar" className="avatar" />
-          </div>
+          <img
+            src={`/avatars/sachin.jpg`}
+            alt="avatar"
+            className="avatar"
+          />
           <div>
             <div className="chat-with">{other}</div>
-            <div className="online-status">● Online</div>
           </div>
         </div>
 
@@ -160,25 +185,31 @@ function Chat({ username, onLogout }) {
           <div className="no-msgs">No messages yet. Say hello! 👋</div>
         )}
 
-        {messages.map((msg) => (
-          <div
-            key={msg._id}
-            className={`message-row ${
-              msg.sender === username ? "sent" : "received"
-            }`}
-          >
-            <div
-              className={`bubble ${
-                msg.sender === username
-                  ? "bubble-sent"
-                  : "bubble-received"
-              }`}
-            >
-              <span className="msg-text">{msg.text}</span>
-              <span className="msg-time">
-                {formatTime(msg.timestamp)}
-              </span>
-            </div>
+        {Object.entries(groupedMessages).map(([date, msgs]) => (
+          <div key={date} className="date-container">
+            <div className="date-divider">{date}</div>
+
+            {msgs.map((msg) => (
+              <div
+                key={msg._id}
+                className={`message-row ${
+                  msg.sender === username ? "sent" : "received"
+                }`}
+              >
+                <div
+                  className={`bubble ${
+                    msg.sender === username
+                      ? "bubble-sent"
+                      : "bubble-received"
+                  }`}
+                >
+                  <span className="msg-text">{msg.text}</span>
+                  <span className="msg-time">
+                    {formatTime(msg.timestamp)}
+                  </span>
+                </div>
+              </div>
+            ))}
           </div>
         ))}
 
@@ -209,7 +240,20 @@ function Chat({ username, onLogout }) {
 export default function App() {
   const [username, setUsername] = useState(null);
 
-  // ✅ FIX: initialize properly on app load
+  useEffect(() => {
+    const interceptor = axios.interceptors.request.use((config) => {
+      const token = localStorage.getItem("token");
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+      return config;
+    });
+  
+    return () => {
+      axios.interceptors.request.eject(interceptor);
+    };
+  }, []);
+
   useEffect(() => {
     const storedUser = localStorage.getItem("username");
     if (storedUser) {
