@@ -228,6 +228,7 @@ h1 {
 /* Message bubbles */
 .message-row {
   display: flex;
+  margin: 10px;
 }
 
 .message-row.sent {
