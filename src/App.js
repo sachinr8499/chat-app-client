@@ -4,6 +4,8 @@ import "./App.css";
 
 const API = process.env.REACT_APP_API_URL || "http://localhost:5001";
 
+/* ================= LOGIN ================= */
+
 function Login({ onLogin }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -22,10 +24,14 @@ function Login({ onLogin }) {
         password: password.trim(),
       });
 
-      localStorage.setItem("token", res.data.token);
-      localStorage.setItem("username", res.data.username);
+      const token = res.data.token;
+      const user = res.data.username;
 
-      onLogin(res.data.username);
+      localStorage.setItem("token", token);
+      localStorage.setItem("username", user);
+
+      // ensure state updates AFTER storage is set
+      onLogin(user);
     } catch (err) {
       setError("Invalid credentials. Try again.");
       console.error("Login error:", err.response?.data || err.message);
@@ -73,6 +79,8 @@ function Login({ onLogin }) {
   );
 }
 
+/* ================= CHAT ================= */
+
 function Chat({ username, onLogout }) {
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
@@ -81,12 +89,21 @@ function Chat({ username, onLogout }) {
 
   const other = username === "user1" ? "Prajakta" : "Sachin";
 
+  const getAuthHeader = () => ({
+    headers: {
+      Authorization: `Bearer ${localStorage.getItem("token")}`,
+    },
+  });
+
   const fetchMessages = useCallback(async () => {
     const token = localStorage.getItem("token");
     if (!token) return;
 
     try {
-      const res = await axios.get(`${API}/api/messages`);
+      const res = await axios.get(
+        `${API}/api/messages`,
+        getAuthHeader()
+      );
       setMessages(res.data);
     } catch (err) {
       console.error("Fetch error:", err.response?.data || err.message);
@@ -94,10 +111,13 @@ function Chat({ username, onLogout }) {
   }, []);
 
   useEffect(() => {
+    if (!username) return;
+
     fetchMessages();
     const interval = setInterval(fetchMessages, 10000);
+
     return () => clearInterval(interval);
-  }, [fetchMessages]);
+  }, [fetchMessages, username]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -109,7 +129,11 @@ function Chat({ username, onLogout }) {
     setLoading(true);
 
     try {
-      await axios.post(`${API}/api/messages`, { text });
+      await axios.post(
+        `${API}/api/messages`,
+        { text },
+        getAuthHeader()
+      );
       setText("");
       fetchMessages();
     } catch (err) {
@@ -127,7 +151,6 @@ function Chat({ username, onLogout }) {
     });
   };
 
-  // ✅ DATE LABEL (Today / Yesterday / Date)
   const getDateLabel = (ts) => {
     const msgDate = new Date(ts);
     const today = new Date();
@@ -147,17 +170,14 @@ function Chat({ username, onLogout }) {
     });
   };
 
-  // ✅ SORT + GROUP
   const sortedMessages = [...messages].sort(
     (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
   );
 
   const groupedMessages = sortedMessages.reduce((acc, msg) => {
     const label = getDateLabel(msg.timestamp);
-
     if (!acc[label]) acc[label] = [];
     acc[label].push(msg);
-
     return acc;
   }, {});
 
@@ -237,9 +257,12 @@ function Chat({ username, onLogout }) {
   );
 }
 
+/* ================= APP ================= */
+
 export default function App() {
   const [username, setUsername] = useState(null);
 
+  // attach interceptor once
   useEffect(() => {
     const interceptor = axios.interceptors.request.use((config) => {
       const token = localStorage.getItem("token");
@@ -248,12 +271,13 @@ export default function App() {
       }
       return config;
     });
-  
+
     return () => {
       axios.interceptors.request.eject(interceptor);
     };
   }, []);
 
+  // restore session
   useEffect(() => {
     const storedUser = localStorage.getItem("username");
     if (storedUser) {
